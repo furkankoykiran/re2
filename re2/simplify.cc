@@ -75,6 +75,10 @@ bool Regexp::ComputeSimple() {
         return !ccb_->empty() && !ccb_->full();
       return !cc_->empty() && !cc_->full();
     case kRegexpCapture:
+    case kRegexpLookBehindPositive:
+    case kRegexpLookBehindNegative:
+    case kRegexpLookAheadPositive:
+    case kRegexpLookAheadNegative:
       subs = sub();
       return subs[0]->simple();
     case kRegexpStar:
@@ -514,6 +518,23 @@ Regexp* SimplifyWalker::PostVisit(Regexp* re,
       nre->AllocSub(1);
       nre->sub()[0] = newsub;
       nre->cap_ = re->cap();
+      nre->simple_ = true;
+      return nre;
+    }
+
+    case kRegexpLookBehindPositive:
+    case kRegexpLookBehindNegative:
+    case kRegexpLookAheadPositive:
+    case kRegexpLookAheadNegative: {
+      Regexp* newsub = child_args[0];
+      if (newsub == re->sub()[0]) {
+        newsub->Decref();
+        re->simple_ = true;
+        return re->Incref();
+      }
+      Regexp* nre = new Regexp(re->op(), re->parse_flags());
+      nre->AllocSub(1);
+      nre->sub()[0] = newsub;
       nre->simple_ = true;
       return nre;
     }

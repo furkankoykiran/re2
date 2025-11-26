@@ -158,6 +158,16 @@ enum RegexpOp {
   // Matches character class given by cc_.
   kRegexpCharClass,
 
+  // Look-around assertions (newly added).
+  // Matches empty string if sub_[0] matches the text before this point.
+  kRegexpLookBehindPositive,
+  // Matches empty string if sub_[0] does NOT match the text before this point.
+  kRegexpLookBehindNegative,
+  // Matches empty string if sub_[0] matches the text after this point.
+  kRegexpLookAheadPositive,
+  // Matches empty string if sub_[0] does NOT match the text after this point.
+  kRegexpLookAheadNegative,
+
   // Forces match of entire expression right now,
   // with match ID match_id_ (used by RE2::Set).
   kRegexpHaveMatch,

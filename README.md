@@ -25,7 +25,12 @@ at the cost of some overhead. This pessimism is what makes RE2 secure.
 
 It is also not a goal to implement all of the features offered by Perl, PCRE and other engines.
 As a matter of principle, RE2 does not support constructs for which only backtracking solutions are known to exist.
-Thus, backreferences and look-around assertions are not supported.
+Thus, backreferences are not supported.
+
+**Note:** As of this fork, **experimental support for look-around assertions** (lookbehind and lookahead) 
+has been added. This feature is still in development and may not work correctly in all cases. The implementation
+currently supports parsing of `(?<=...)`, `(?<!...)`, `(?=...)`, and `(?!...)` syntax, but full execution 
+engine support is still being developed. Use with caution in production environments.
 
 For more information, please refer to Russ Cox's articles on regular expression theory and practice:
 

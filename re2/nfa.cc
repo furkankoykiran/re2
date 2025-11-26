@@ -144,7 +144,9 @@ NFA::NFA(Prog* prog) {
   // See NFA::AddToThreadq() for why this is so.
   int nstack = 2*prog_->inst_count(kInstCapture) +
                prog_->inst_count(kInstEmptyWidth) +
-               prog_->inst_count(kInstNop) + 1;  // + 1 for start inst
+               prog_->inst_count(kInstNop) +
+               prog_->inst_count(kInstLookBehind) +
+               prog_->inst_count(kInstLookAhead) + 1;  // + 1 for start inst
   stack_ = PODArray<AddState>(nstack);
   freelist_ = NULL;
   match_ = NULL;
@@ -318,6 +320,71 @@ void NFA::AddToThreadq(Threadq* q, int id0, int c, absl::string_view context,
         break;
       a = {ip->out(), NULL};
       goto Loop;
+
+    case kInstLookBehind: {
+      // EXPERIMENTAL: Lookbehind execution
+      if (!ip->last())
+        stk[nstk++] = {id+1, NULL};
+
+      Prog* subprog = prog_->subprog(ip->subprog_id());
+      if (subprog == nullptr)
+        break;
+
+      // Calculate lookbehind text slice (bounded by max_len)
+      const char* lookbehind_start = context.data();
+      const char* lookbehind_end = p;
+      int max_len = ip->max_len();
+      if (lookbehind_end - lookbehind_start > max_len) {
+        lookbehind_start = lookbehind_end - max_len;
+      }
+      
+      absl::string_view lookbehind_text(lookbehind_start, lookbehind_end - lookbehind_start);
+      absl::string_view dummy_match;
+      
+      // Run subprog on lookbehind text (anchored at end)
+      bool matched = subprog->SearchNFA(lookbehind_text, lookbehind_text,
+                                        Prog::kAnchored, Prog::kFullMatch,
+                                        &dummy_match, 0);
+      
+      // For negative lookbehind, invert the result
+      if (ip->is_negative())
+        matched = !matched;
+      
+      if (matched) {
+        a = {ip->out(), NULL};
+        goto Loop;
+      }
+      break;
+    }
+
+    case kInstLookAhead: {
+      // EXPERIMENTAL: Lookahead execution
+      if (!ip->last())
+        stk[nstk++] = {id+1, NULL};
+
+      Prog* subprog = prog_->subprog(ip->subprog_id());
+      if (subprog == nullptr)
+        break;
+
+      // Calculate lookahead text slice (from current position)
+      absl::string_view lookahead_text(p, context.data() + context.size() - p);
+      absl::string_view dummy_match;
+      
+      // Run subprog on lookahead text (anchored at start)
+      bool matched = subprog->SearchNFA(lookahead_text, lookahead_text,
+                                        Prog::kAnchored, Prog::kLongestMatch,
+                                        &dummy_match, 0);
+      
+      // For negative lookahead, invert the result
+      if (ip->is_negative())
+        matched = !matched;
+      
+      if (matched) {
+        a = {ip->out(), NULL};
+        goto Loop;
+      }
+      break;
+    }
     }
   }
 }

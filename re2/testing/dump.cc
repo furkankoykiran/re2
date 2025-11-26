@@ -50,6 +50,10 @@ static const char* kOpcodeNames[] = {
   "bot",
   "eot",
   "cc",
+  "lbp",  // kRegexpLookBehindPositive
+  "lbn",  // kRegexpLookBehindNegative
+  "lap",  // kRegexpLookAheadPositive
+  "lan",  // kRegexpLookAheadNegative
   "match",
 };
 

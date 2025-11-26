@@ -77,6 +77,22 @@ void Prog::Inst::InitFail() {
   set_opcode(kInstFail);
 }
 
+void Prog::Inst::InitLookBehind(int subprog_id, int max_len, bool negative, uint32_t out) {
+  ABSL_DCHECK_EQ(out_opcode_, uint32_t{0});
+  set_out_opcode(out, kInstLookBehind);
+  subprog_id_ = subprog_id & 0xFFFF;
+  max_len_ = max_len & 0xFF;
+  flags_ = negative ? 1 : 0;
+}
+
+void Prog::Inst::InitLookAhead(int subprog_id, bool negative, uint32_t out) {
+  ABSL_DCHECK_EQ(out_opcode_, uint32_t{0});
+  set_out_opcode(out, kInstLookAhead);
+  subprog_id_ = subprog_id & 0xFFFF;
+  max_len_ = 0;  // not used for lookahead
+  flags_ = negative ? 1 : 0;
+}
+
 std::string Prog::Inst::Dump() {
   switch (opcode()) {
     default:
@@ -99,6 +115,16 @@ std::string Prog::Inst::Dump() {
     case kInstEmptyWidth:
       return absl::StrFormat("emptywidth %#x -> %d",
                              static_cast<int>(empty_), out());
+
+    case kInstLookBehind:
+      return absl::StrFormat("lookbehind%s subprog=%d maxlen=%d -> %d",
+                             is_negative() ? "(negative)" : "",
+                             subprog_id_, max_len_, out());
+
+    case kInstLookAhead:
+      return absl::StrFormat("lookahead%s subprog=%d -> %d",
+                             is_negative() ? "(negative)" : "",
+                             subprog_id_, out());
 
     case kInstMatch:
       return absl::StrFormat("match! %d", match_id());
@@ -135,6 +161,10 @@ Prog::~Prog() {
   DeleteDFA(dfa_first_);
   if (prefix_foldcase_)
     delete[] prefix_dfa_;
+  // Clean up subprograms
+  for (Prog* subprog : subprogs_) {
+    delete subprog;
+  }
 }
 
 typedef SparseSet Workq;

@@ -111,6 +111,26 @@ int ToStringWalker::PreVisit(Regexp* re, int parent_arg, bool* stop) {
       nprec = PrecParen;
       break;
 
+    case kRegexpLookBehindPositive:
+      t_->append("(?<=");
+      nprec = PrecParen;
+      break;
+
+    case kRegexpLookBehindNegative:
+      t_->append("(?<!");
+      nprec = PrecParen;
+      break;
+
+    case kRegexpLookAheadPositive:
+      t_->append("(?=");
+      nprec = PrecParen;
+      break;
+
+    case kRegexpLookAheadNegative:
+      t_->append("(?!");
+      nprec = PrecParen;
+      break;
+
     case kRegexpStar:
     case kRegexpPlus:
     case kRegexpQuest:
@@ -284,6 +304,10 @@ int ToStringWalker::PostVisit(Regexp* re, int parent_arg, int pre_arg,
     }
 
     case kRegexpCapture:
+    case kRegexpLookBehindPositive:
+    case kRegexpLookBehindNegative:
+    case kRegexpLookAheadPositive:
+    case kRegexpLookAheadNegative:
       t_->append(")");
       break;
 

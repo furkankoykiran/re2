@@ -38,6 +38,8 @@ enum InstOp {
   kInstMatch,        // found a match!
   kInstNop,          // no-op; occasionally unavoidable
   kInstFail,         // never match; occasionally unavoidable
+  kInstLookBehind,   // lookbehind assertion (positive or negative)
+  kInstLookAhead,    // lookahead assertion (positive or negative)
   kNumInst,
 };
 
@@ -79,6 +81,8 @@ class Prog {
     void InitMatch(int id);
     void InitNop(uint32_t out);
     void InitFail();
+    void InitLookBehind(int subprog_id, int max_len, bool negative, uint32_t out);
+    void InitLookAhead(int subprog_id, bool negative, uint32_t out);
 
     // Getters
     int id(Prog* p) { return static_cast<int>(this - p->inst_.data()); }
@@ -116,6 +120,18 @@ class Prog {
     EmptyOp empty() {
       ABSL_DCHECK_EQ(opcode(), kInstEmptyWidth);
       return empty_;
+    }
+    int subprog_id() {
+      ABSL_DCHECK(opcode() == kInstLookBehind || opcode() == kInstLookAhead);
+      return subprog_id_;
+    }
+    int max_len() {
+      ABSL_DCHECK_EQ(opcode(), kInstLookBehind);
+      return max_len_;
+    }
+    bool is_negative() {
+      ABSL_DCHECK(opcode() == kInstLookBehind || opcode() == kInstLookAhead);
+      return flags_ & 1;
     }
 
     bool greedy(Prog* p) {
@@ -186,6 +202,12 @@ class Prog {
 
       EmptyOp empty_;       // opcode == kInstEmptyWidth
                             //   empty_ is bitwise OR of kEmpty* flags above.
+
+      struct {              // opcode == kInstLookBehind || kInstLookAhead
+        uint16_t subprog_id_;  //   index into subprogs_ array
+        uint8_t max_len_;      //   maximum lookbehind length (bounded)
+        uint8_t flags_;        //   bit 0: positive(0) or negative(1)
+      };
     };
 
     friend class Compiler;
@@ -244,6 +266,7 @@ class Prog {
   int bytemap_range() { return bytemap_range_; }
   const uint8_t* bytemap() { return bytemap_; }
   bool can_prefix_accel() { return prefix_size_ != 0; }
+  Prog* subprog(int id) { return id < static_cast<int>(subprogs_.size()) ? subprogs_[id] : nullptr; }
 
   // Accelerates to the first likely occurrence of the prefix.
   // Returns a pointer to the first byte or NULL if not found.
@@ -472,6 +495,9 @@ class Prog {
 
   absl::once_flag dfa_first_once_;
   absl::once_flag dfa_longest_once_;
+
+  // Subprograms for lookaround assertions
+  std::vector<Prog*> subprogs_;
 
   Prog(const Prog&) = delete;
   Prog& operator=(const Prog&) = delete;

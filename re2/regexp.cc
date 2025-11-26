@@ -421,6 +421,13 @@ static bool TopEqual(Regexp* a, Regexp* b) {
              memcmp(acc->begin(), bcc->begin(),
                     (acc->end() - acc->begin()) * sizeof acc->begin()[0]) == 0;
     }
+
+    case kRegexpLookBehindPositive:
+    case kRegexpLookBehindNegative:
+    case kRegexpLookAheadPositive:
+    case kRegexpLookAheadNegative:
+      // Lookaround: compare subexpressions
+      return a->nsub() == b->nsub();
   }
 
   ABSL_LOG(DFATAL) << "Unexpected op in Regexp::Equal: " << a->op();
@@ -444,6 +451,10 @@ bool Regexp::Equal(Regexp* a, Regexp* b) {
     case kRegexpQuest:
     case kRegexpRepeat:
     case kRegexpCapture:
+    case kRegexpLookBehindPositive:
+    case kRegexpLookBehindNegative:
+    case kRegexpLookAheadPositive:
+    case kRegexpLookAheadNegative:
       break;
 
     default:
@@ -480,6 +491,10 @@ bool Regexp::Equal(Regexp* a, Regexp* b) {
       case kRegexpQuest:
       case kRegexpRepeat:
       case kRegexpCapture:
+      case kRegexpLookBehindPositive:
+      case kRegexpLookBehindNegative:
+      case kRegexpLookAheadPositive:
+      case kRegexpLookAheadNegative:
         a2 = a->sub()[0];
         b2 = b->sub()[0];
         if (!TopEqual(a2, b2))

@@ -977,6 +977,45 @@ Frag Compiler::PostVisit(Regexp* re, Frag, Frag, Frag* child_frags,
 
     case kRegexpNoWordBoundary:
       return EmptyWidth(kEmptyNonWordBoundary);
+
+    case kRegexpLookBehindPositive:
+    case kRegexpLookBehindNegative:
+    case kRegexpLookAheadPositive:
+    case kRegexpLookAheadNegative: {
+      // EXPERIMENTAL: Bounded lookaround implementation
+      // Compile subpattern into a separate Prog
+      ABSL_DCHECK_EQ(re->nsub(), 1);
+      Regexp* sub = re->sub()[0];
+      
+      // Estimate max length for lookbehind (bounded to 255 for O(n) guarantee)
+      int max_len = 255;  // TODO: analyze pattern for tighter bound
+      
+      // Compile subpattern to separate Prog
+      Prog* subprog = sub->CompileToProg(max_mem_);
+      if (subprog == nullptr) {
+        failed_ = true;
+        return NoMatch();
+      }
+      
+      // Store subprog and get its ID
+      int subprog_id = prog_->subprogs_.size();
+      prog_->subprogs_.push_back(subprog);
+      
+      // Create lookaround instruction
+      bool is_negative = (re->op() == kRegexpLookBehindNegative || 
+                          re->op() == kRegexpLookAheadNegative);
+      bool is_lookbehind = (re->op() == kRegexpLookBehindPositive || 
+                            re->op() == kRegexpLookBehindNegative);
+      
+      int id = AllocInst(1);
+      if (is_lookbehind) {
+        inst_[id].InitLookBehind(subprog_id, max_len, is_negative, 0);
+      } else {
+        inst_[id].InitLookAhead(subprog_id, is_negative, 0);
+      }
+      
+      return Frag(id, PatchList::Mk(id << 1), false);
+    }
   }
   failed_ = true;
   ABSL_LOG(DFATAL) << "Missing case in Compiler: " << re->op();

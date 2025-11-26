@@ -79,10 +79,10 @@ $	at end of text (like «\z» not «\Z») or line («m»=true)
 \G	at end of last match NOT SUPPORTED perl
 \Z	at end of text, or before newline at end of text NOT SUPPORTED
 \z	at end of text
-(?=re)	before text matching «re» NOT SUPPORTED
-(?!re)	before text not matching «re» NOT SUPPORTED
-(?<=re)	after text matching «re» NOT SUPPORTED
-(?<!re)	after text not matching «re» NOT SUPPORTED
+(?=re)	before text matching «re» EXPERIMENTAL
+(?!re)	before text not matching «re» EXPERIMENTAL
+(?<=re)	after text matching «re» EXPERIMENTAL
+(?<!re)	after text not matching «re» EXPERIMENTAL
 re&	before text matching «re» NOT SUPPORTED vim
 re@=	before text matching «re» NOT SUPPORTED vim
 re@!	before text not matching «re» NOT SUPPORTED vim

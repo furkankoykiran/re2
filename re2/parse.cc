@@ -2099,15 +2099,93 @@ bool Regexp::ParseState::ParsePerlFlags(absl::string_view* s) {
     return false;
   }
 
-  // Check for look-around assertions. This is NOT because we support them! ;)
-  // As per https://github.com/google/re2/issues/468, we really want to report
-  // kRegexpBadPerlOp (not kRegexpBadNamedCapture) for look-behind assertions.
-  // Additionally, it would be nice to report not "(?<", but "(?<=" or "(?<!".
-  if ((t.size() > 3 && (t[2] == '=' || t[2] == '!')) ||
-      (t.size() > 4 && t[2] == '<' && (t[3] == '=' || t[3] == '!'))) {
-    status_->set_code(kRegexpBadPerlOp);
-    status_->set_error_arg(absl::string_view(t.data(), t[2] == '<' ? 4 : 3));
-    return false;
+  // Check for look-around assertions and handle them.
+  // Lookahead: (?=...) positive, (?!...) negative
+  // Lookbehind: (?<=...) positive, (?<!...) negative
+  if (t.size() > 3 && (t[2] == '=' || t[2] == '!')) {
+    // Lookahead: (?= or (?!
+    RegexpOp op = (t[2] == '=') ? kRegexpLookAheadPositive : kRegexpLookAheadNegative;
+    
+    // Find the matching closing parenthesis
+    size_t depth = 1;
+    size_t i = 3;
+    for (; i < t.size() && depth > 0; i++) {
+      if (t[i] == '(' && i + 1 < t.size() && t[i+1] != '?') {
+        depth++;
+      } else if (t[i] == ')') {
+        depth--;
+      }
+    }
+    
+    if (depth != 0) {
+      status_->set_code(kRegexpMissingParen);
+      status_->set_error_arg(t);
+      return false;
+    }
+    
+    // Extract the lookahead pattern
+    absl::string_view pattern = t.substr(3, i - 4);
+    
+    // Parse the inner pattern recursively
+    Regexp* sub = Regexp::Parse(pattern, flags_, status_);
+    if (sub == NULL)
+      return false;
+    
+    // Create lookahead regexp node
+    Regexp* re = new Regexp(op, flags_);
+    re->AllocSub(1);
+    re->sub()[0] = sub;
+    
+    if (!PushRegexp(re)) {
+      re->Decref();
+      return false;
+    }
+    
+    s->remove_prefix(i);
+    return true;
+  }
+  
+  if (t.size() > 4 && t[2] == '<' && (t[3] == '=' || t[3] == '!')) {
+    // Lookbehind: (?<= or (?<!
+    RegexpOp op = (t[3] == '=') ? kRegexpLookBehindPositive : kRegexpLookBehindNegative;
+    
+    // Find the matching closing parenthesis
+    size_t depth = 1;
+    size_t i = 4;
+    for (; i < t.size() && depth > 0; i++) {
+      if (t[i] == '(' && i + 1 < t.size() && t[i+1] != '?') {
+        depth++;
+      } else if (t[i] == ')') {
+        depth--;
+      }
+    }
+    
+    if (depth != 0) {
+      status_->set_code(kRegexpMissingParen);
+      status_->set_error_arg(t);
+      return false;
+    }
+    
+    // Extract the lookbehind pattern
+    absl::string_view pattern = t.substr(4, i - 5);
+    
+    // Parse the inner pattern recursively
+    Regexp* sub = Regexp::Parse(pattern, flags_, status_);
+    if (sub == NULL)
+      return false;
+    
+    // Create lookbehind regexp node
+    Regexp* re = new Regexp(op, flags_);
+    re->AllocSub(1);
+    re->sub()[0] = sub;
+    
+    if (!PushRegexp(re)) {
+      re->Decref();
+      return false;
+    }
+    
+    s->remove_prefix(i);
+    return true;
   }
 
   // Check for named captures, first introduced in Python's regexp library.
