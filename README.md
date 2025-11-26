@@ -27,8 +27,41 @@ It is also not a goal to implement all of the features offered by Perl, PCRE and
 As a matter of principle, RE2 does not support constructs for which only backtracking solutions are known to exist.
 Thus, backreferences are not supported.
 
-**Note:** As of this fork, **experimental support for look-around assertions** (lookbehind and lookahead) 
-has been added. This feature is still in development and may not work correctly in all cases. The implementation
+---
+
+## ⚡ Experimental Fork Features
+
+**This fork adds experimental lookaround assertion support** while maintaining RE2's O(n) performance guarantee.
+
+### 🔍 Lookaround Assertions (Experimental)
+
+- `(?<!...)` - Negative lookbehind (bounded to 255 chars)
+- `(?<=...)` - Positive lookbehind (bounded to 255 chars)
+- `(?!...)` - Negative lookahead
+- `(?=...)` - Positive lookahead
+
+**⚠️ Warning**: This is an EXPERIMENTAL feature, not officially supported by Google's RE2 team.
+
+**📖 Full Documentation**: See [EXPERIMENTAL_FEATURES.md](EXPERIMENTAL_FEATURES.md) for:
+- Implementation details and design rationale
+- Usage examples and patterns
+- Performance characteristics
+- Limitations and known issues
+- Comparison with PCRE/Perl
+
+**Quick Example**:
+```cpp
+// Match "test" not preceded by a digit
+RE2 re("(?<!\\d)test");
+RE2::PartialMatch("hello test", re);  // matches
+RE2::PartialMatch("123test", re);     // no match
+```
+
+**Status**: Proof of concept / seeking feedback. See [related discussion](#) on whether bounded lookaround could be acceptable for upstream RE2.
+
+---
+
+## RE2 Documentation
 currently supports parsing of `(?<=...)`, `(?<!...)`, `(?=...)`, and `(?!...)` syntax, but full execution 
 engine support is still being developed. Use with caution in production environments.
 
